@@ -268,8 +268,14 @@ class CatalogAdmin(admin.ModelAdmin):
         if nodes_qs.count() == 0:
             return JsonResponse(response)
 
-        distinct_node_types = nodes_qs.order_by('content_type__id').\
-            distinct('content_type__id')
+        distinct_node_types = []
+        try:
+            distinct_node_types = nodes_qs.order_by('content_type__id').distinct('content_type__id')
+            distinct_node_types.exists()
+        except NotImplementedError:
+            # backend sqlite3/mysql not supported DISTINCT operation
+            from django.db.models import Min
+            distinct_node_types = nodes_qs.order_by('content_type__id').annotate(content_type__id=Min('content_type__id'))
         models = [node.content_object.__class__
                   for node in distinct_node_types]
         fields = self.get_display_fields(models)
